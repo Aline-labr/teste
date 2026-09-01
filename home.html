@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comentários</title>
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore-compat.js"></script>
+    <style>
+        /* CSS Básico */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 50px;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0 0 0 0.1);
+            width: 90%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        .form-group button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Estilos específicos para a lista de comentários */
+        #comentarios-lista {
+            list-style: none;
+            padding: 0;
+        }
+
+        .comentario-item {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0 0 0 0.05);
+        }
+
+        .comentario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .comentario-autor {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 0.9em;
+        }
+
+        .comentario-data {
+            color: #999;
+            font-size: 0.8em;
+        }
+
+        .comentario-corpo {
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+        }
+        
+        .comentario-corpo textarea {
+            width: 100%;
+            resize: vertical;
+            border: 1px solid #ccc;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .comentario-actions button {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 10px;
+            font-size: 0.9em;
+            text-decoration: underline;
+        }
+        
+        .comentario-actions .btn-editar {
+            color: #ffc107;
+        }
+        
+        .comentario-actions .btn-salvar {
+            color: #28a745;
+        }
+
+        .comentario-actions button:hover {
+            opacity: 0.8;
+        }
+        
+        #logout-button {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: background-color 0.3s ease;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        #logout-button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <button id="logout-button" onclick="logout()">Sair (Logout)</button>
+
+    <div id="auth-status" class="container" style="text-align: center;">
+        Carregando...
+    </div>
+
+    <div id="adicionar-comentario" class="container" style="display:none;">
+        <h2>Adicionar Novo Comentário</h2>
+        <div class="form-group">
+            <label for="novo-comentario-texto">Seu Comentário:</label>
+            <textarea id="novo-comentario-texto" rows="3" required></textarea>
+        </div>
+        <div class="form-group">
+            <button type="button" onclick="adicionarComentario()">Publicar</button>
+        </div>
+    </div>
+
+    <div id="lista-comentarios-container" class="container" style="display:none;">
+        <h2>Comentários Recentes</h2>
+        <ul id="comentarios-lista">
+        </ul>
+    </div>
+
+</body>
+<script>
+    // Configurações do Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyAv0msN12YmIEK5gCa6gzzgfTFri8DB_A0",
+        authDomain: "projeto-lab-30ff7.firebaseapp.com",
+        projectId: "projeto-lab-30ff7",
+        storageBucket: "projeto-lab-30ff7.firebasestorage.app",
+        messagingSenderId: "94501749967",
+        appId: "1:94501749967:web:35980290cc9ad1207ba3ba"
+    };
+    firebase.initializeApp(firebaseConfig);
+    
+    // Inicializa o Firestore
+    const db = firebase.firestore();
+
+    let currentUser = null; // Para armazenar o usuário logado
+
+    // --- Verifica o Status de Autenticação ---
+    firebase.auth().onAuthStateChanged(user => {
+        const authStatus = document.getElementById('auth-status');
+        const addCommentDiv = document.getElementById('adicionar-comentario');
+        const commentsListDiv = document.getElementById('lista-comentarios-container');
+        
+        if (user) {
+            currentUser = user;
+            authStatus.innerHTML = `Logado como: <strong>${user.email}</strong>`;
+            addCommentDiv.style.display = 'block';
+            commentsListDiv.style.display = 'block';
+            
+            // Inicia o listener que busca TODOS os comentários
+            listenerComentarios();
+        } else {
+            currentUser = null;
+            authStatus.innerHTML = 'Você não está logado. <a href="login.html">Clique aqui para entrar</a>.';
+            addCommentDiv.style.display = 'none';
+            commentsListDiv.style.display = 'none';
+            
+            // Redireciona para login.html se o usuário deslogar ou acessar direto sem autenticação
+            window.location.href = 'login.html';
+        }
+    });
+
+    // Função de Logout
+    function logout() {
+        firebase.auth().signOut().then(() => {
+            window.location.href = 'login.html'; 
+        }).catch(error => {
+            alert('Erro ao fazer logout: ' + error.message);
+        });
+    }
+
+    // --- Funções do Firestore ---
+
+    // 1. Adicionar Comentário
+    function adicionarComentario() {
+        if (!currentUser) {
+            alert('Você precisa estar logado para comentar.');
+            return;
+        }
+
+        const comentarioTexto = document.getElementById('novo-comentario-texto').value.trim();
+
+        if (comentarioTexto === "") {
+            alert('O comentário não pode estar vazio.');
+            return;
+        }
+        
+        const userIdentifier = currentUser.email.substring(0, 6);
+
+        db.collection("comentario").add({
+            userId: currentUser.uid,
+            emailSnippet: userIdentifier,
+            data: firebase.firestore.FieldValue.serverTimestamp(),
+            comentario: comentarioTexto
+        })
+        .then(() => {
+            document.getElementById('novo-comentario-texto').value = '';
+            alert('Comentário publicado com sucesso!');
+        })
+        .catch((error) => {
+            console.error("Erro ao adicionar documento: ", error);
+            alert("Erro ao publicar o comentário: " + error.message);
+        });
+    }
+
+    // 2. Listener para obter todos os comentários em tempo real
+    function listenerComentarios() {
+        db.collection("comentario").orderBy("data", "desc")
+            .onSnapshot((snapshot) => {
+                const comentariosLista = document.getElementById('comentarios-lista');
+                comentariosLista.innerHTML = ''; 
+
+                if (snapshot.empty) {
+                    comentariosLista.innerHTML = '<li>Nenhum comentário publicado ainda.</li>';
+                    return;
+                }
+
+                // Renderiza cada comentário da coleção
+                snapshot.forEach((doc) => {
+                    renderComentario(doc);
+                });
+            }, (error) => {
+                console.error("Erro ao obter comentários: ", error);
+                const comentariosLista = document.getElementById('comentarios-lista');
+                comentariosLista.innerHTML = '<li style="color:red;">Erro ao carregar comentários. Verifique as regras de segurança do Firestore.</li>';
+            });
+    }
+
+    // 3. Renderizar Comentário
+    function renderComentario(doc) {
+        const comentario = doc.data();
+        const comentarioId = doc.id;
+        
+        const date = comentario.data ? comentario.data.toDate().toLocaleString('pt-BR') : 'Data Desconhecida';
+        
+        // Verifica se o usuário autenticado atual é o autor deste comentário específico
+        const isOwner = currentUser && currentUser.uid === comentario.userId;
+
+        const li = document.createElement('li');
+        li.className = 'comentario-item';
+        li.setAttribute('data-id', comentarioId);
+        
+        li.innerHTML = `
+            <div class="comentario-header">
+                <span class="comentario-autor">Autor: ${comentario.emailSnippet}...</span>
+                <span class="comentario-data">${date}</span>
+            </div>
+            <div class="comentario-corpo">
+                <p id="texto-${comentarioId}">${comentario.comentario}</p>
+                <textarea id="edit-texto-${comentarioId}" style="display:none;">${comentario.comentario}</textarea>
+            </div>
+            <div class="comentario-actions">
+                ${isOwner ? `
+                    <button type="button" class="btn-editar" id="edit-btn-${comentarioId}" onclick="habilitarEdicao('${comentarioId}')">Editar</button>
+                    <button type="button" class="btn-salvar" id="save-btn-${comentarioId}" style="display:none;" onclick="salvarEdicao('${comentarioId}', '${comentario.userId}')">Salvar</button>
+                    <button type="button" onclick="deletarComentario('${comentarioId}', '${comentario.userId}')">Deletar</button>
+                ` : ''}
+            </div>
+        `;
+
+        document.getElementById('comentarios-lista').appendChild(li);
+    }
+    
+    // 4. Deletar Comentário
+    function deletarComentario(docId, userId) {
+        if (!currentUser || currentUser.uid !== userId) {
+            alert('Você só pode deletar seus próprios comentários!');
+            return;
+        }
+        
+        if (confirm('Tem certeza que deseja deletar este comentário?')) {
+            db.collection("comentario").doc(docId).delete()
+            .then(() => {
+                alert('Comentário deletado com sucesso!');
+            })
+            .catch((error) => {
+                console.error("Erro ao remover documento: ", error);
+                alert("Erro ao deletar o comentário: " + error.message);
+            });
+        }
+    }
+
+    // 5. Habilitar Edição
+    function habilitarEdicao(docId) {
+        const textoP = document.getElementById(`texto-${docId}`);
+        const textArea = document.getElementById(`edit-texto-${docId}`);
+        const editBtn = document.getElementById(`edit-btn-${docId}`);
+        const saveBtn = document.getElementById(`save-btn-${docId}`);
+        
+        textoP.style.display = 'none';
+        textArea.style.display = 'block';
+        editBtn.style.display = 'none';
+        saveBtn.style.display = 'inline-block';
+        
+        textArea.focus();
+    }
+
+    // 6. Salvar Edição
+    function salvarEdicao(docId, userId) {
+        if (!currentUser || currentUser.uid !== userId) {
+            alert('Você só pode editar seus próprios comentários!');
+            return;
+        }
+        
+        const textArea = document.getElementById(`edit-texto-${docId}`);
+        const novoTexto = textArea.value.trim();
+        
+        if (novoTexto === "") {
+            alert('O comentário não pode estar vazio.');
+            return;
+        }
+
+        db.collection("comentario").doc(docId).update({
+            comentario: novoTexto
+        })
+        .then(() => {
+            alert('Comentário atualizado com sucesso!');
+            const textoP = document.getElementById(`texto-${docId}`);
+            const editBtn = document.getElementById(`edit-btn-${docId}`);
+            const saveBtn = document.getElementById(`save-btn-${docId}`);
+            
+            textArea.style.display = 'none';
+            textoP.style.display = 'block';
+            editBtn.style.display = 'inline-block';
+            saveBtn.style.display = 'none';
+        })
+        .catch((error) => {
+            console.error("Erro ao atualizar documento: ", error);
+            alert("Erro ao atualizar o comentário: " + error.message);
+        });
+    }
+</script>
+
+</html>

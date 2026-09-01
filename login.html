@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Básico</title>
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-auth-compat.js"></script>
+    <style>
+        /* CSS Básico para Estilização */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0 0 0 0.1);
+            width: 300px;
+            text-align: center;
+        }
+
+        .login-container h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .form-group button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Estilos adicionais para os novos botões */
+        .btn-secondary {
+            background-color: #6c757d; /* Cinza para Ações Secundárias */
+            margin-top: 5px; /* Espaçamento menor entre botões */
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        .btn-register {
+            background-color: #28a745; /* Verde para Cadastro */
+        }
+        
+        .btn-register:hover {
+            background-color: #1e7e34;
+        }
+
+        .links-group {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .links-group button {
+            /* Estilo dos botões de link */
+            background: none;
+            border: none;
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 14px;
+        }
+        
+        .links-group button:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-container">
+        <h2>Acesso à Conta</h2>
+        <form>
+            <div class="form-group">
+                <label for="usuario">Usuário ou E-mail:</label>
+                <input type="text" id="email" name="usuario" required>
+            </div>
+            <div class="form-group">
+                <label for="senha">Senha:</label>
+                <input type="password" id="password" name="senha" required>
+            </div>
+            
+            <div class="form-group">
+                <button type="button" id="login-button" onclick="login()">Entrar</button>
+            </div>
+
+            <div class="form-group">
+                <button type="button" class="btn-register" onclick="cadastrar()">Cadastrar</button>
+            </div>
+            
+            <div class="links-group">
+                <button type="button" onclick="recuperarSenha()">Esqueci a Senha</button>
+            </div>
+            
+        </form>
+    </div>
+
+</body>
+<script>
+    // Configurações do Firebase (mantidas)
+    const firebaseConfig = {
+        apiKey: "AIzaSyAv0msN12YmIEK5gCa6gzzgfTFri8DB_A0",
+        authDomain: "projeto-lab-30ff7.firebaseapp.com",
+        projectId: "projeto-lab-30ff7",
+        storageBucket: "projeto-lab-30ff7.firebasestorage.app",
+        messagingSenderId: "94501749967",
+        appId: "1:94501749967:web:35980290cc9ad1207ba3ba"
+    };
+    firebase.initializeApp(firebaseConfig);
+    
+    // Função para tratar erros (copiada do seu arquivo)
+    function getErrorMessage(error) {
+        switch (error.code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+                return 'Credenciais inválidas.';
+            case 'auth/invalid-email':
+                return 'E-mail inválido.';
+            case 'auth/network-request-failed':
+                return 'Falha na rede. Verifique sua conexão.';
+            case 'auth/email-already-in-use':
+                return 'Este e-mail já está em uso. Tente entrar ou recuperar a senha.';
+            case 'auth/weak-password':
+                return 'A senha deve ter pelo menos 6 caracteres.';
+            default:
+                return 'Erro de autenticação: ' + error.message;
+        }
+    }
+
+    // Função de Login (Atualizada para ir para 'comentarios.html')
+    function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        firebase.auth().signInWithEmailAndPassword(email, password).then(response => {
+            // ATUALIZADO: Redireciona para a página de comentários após o login
+            window.location.href = 'home.html'; 
+        }).catch(error => {
+            alert(getErrorMessage(error));
+        });
+    }
+
+    // NOVO: Função de Cadastro
+    function cadastrar() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        if (email === "" || password === "") {
+            alert('Preencha o E-mail e a Senha para realizar o cadastro.');
+            return;
+        }
+
+        firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then(response => {
+            alert('Cadastro realizado com sucesso! Você será logado automaticamente.');
+            // Opcional: Redirecionar para a página de comentários ou mostrar mensagem
+            window.location.href = 'home.html'; 
+        })
+        .catch(error => {
+            alert(getErrorMessage(error));
+        });
+    }
+
+    // NOVO: Função de Recuperação de Senha
+    function recuperarSenha() {
+        const email = document.getElementById('email').value;
+
+        if (email === "") {
+            alert('Preencha o campo de E-mail para receber o link de recuperação de senha.');
+            return;
+        }
+
+        firebase.auth().sendPasswordResetEmail(email)
+        .then(() => {
+            alert('Um link de recuperação de senha foi enviado para o e-mail: ' + email + '.');
+        })
+        .catch(error => {
+            // Em caso de erro (ex: e-mail não encontrado), apenas alertamos.
+            alert('Erro ao enviar e-mail de recuperação: ' + getErrorMessage(error));
+        });
+    }
+</script>
+
+</html>
